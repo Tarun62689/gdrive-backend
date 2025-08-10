@@ -24,6 +24,7 @@ const uploadFile = async (req, res) => {
     // Find folder_id (default to My Drive)
     let folderId = req.body.folder_id || null;
     if (!folderId) {
+      // Try to get existing My Drive folder
       const { data: myDrive, error: driveError } = await supabase
         .from('folders')
         .select('id')
@@ -32,10 +33,25 @@ const uploadFile = async (req, res) => {
         .is('parent_folder_id', null)
         .maybeSingle();
 
-      if (driveError || !myDrive) {
-        return res.status(400).json({ error: 'My Drive folder not found' });
+      if (driveError) {
+        return res.status(400).json({ error: 'Database error searching My Drive' });
       }
-      folderId = myDrive.id;
+
+      if (!myDrive) {
+        // Create My Drive folder on demand
+        const { data: newDrive, error: createError } = await supabase
+          .from('folders')
+          .insert([{ user_id: userId, name: 'My Drive', parent_folder_id: null }])
+          .select()
+          .single();
+
+        if (createError) {
+          return res.status(500).json({ error: 'Failed to create My Drive folder' });
+        }
+        folderId = newDrive.id;
+      } else {
+        folderId = myDrive.id;
+      }
     }
 
     // Permission Check

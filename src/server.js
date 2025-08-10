@@ -4,6 +4,7 @@ import uploadRoutes from './routes/upload.js';
 import folderRoutes from './routes/folderRoutes.js';
 import fileRoutes from './routes/fileRoutes.js';
 
+const PORT = process.env.PORT || 5000;  // <--- add this
 const baseUrl = process.env.BASE_URL || 'http://localhost:5000';
 
 // Routes
