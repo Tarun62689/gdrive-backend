@@ -4,7 +4,7 @@ import uploadRoutes from './routes/upload.js';
 import folderRoutes from './routes/folderRoutes.js';
 import fileRoutes from './routes/fileRoutes.js';
 
-const baseUrl = process.env.BASE_URL;
+const baseUrl = process.env.BASE_URL || 'http://localhost:5000';
 
 // Routes
 app.use('/api', uploadRoutes);
