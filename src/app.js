@@ -25,6 +25,7 @@ import storageRoutes from './routes/storageRoutes.js';
 import shareRoutes from './routes/shareRoutes.js';
 import folderRoutesVEO from './routes/folderRoutesVEO.js';
 import searchRoutes from './routes/searchRoutes.js';
+import userRoutes from './routes/userRoutes.js';
 
 app.use('/auth', authRoutes);
 app.use('/api', protectedRoutes);
@@ -35,6 +36,7 @@ app.use('/api/storage', storageRoutes);
 app.use('/api', shareRoutes);
 app.use('/api/folders', folderRoutesVEO); // VEO specific folder routes
 app.use('/api', searchRoutes);
+app.use('/user', userRoutes);
 
 // Test route
 app.get('/', (req, res) => {
