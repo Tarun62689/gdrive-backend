@@ -1,35 +1,62 @@
 import express from 'express';
 import multer from 'multer';
-import { uploadFile, renameItem, moveToTrash, deleteItem } from '../controllers/fileController.js';
+import { 
+  uploadFile, 
+  renameItem, 
+  moveToTrash, 
+  deleteItem, 
+  getUserData 
+} from '../controllers/fileController.js';
 import { authenticateUser } from '../middlewares/auth.js'; 
 import checkFilePermission from '../middlewares/permissionCheck.js';
 import checkFolderPermission from '../middlewares/folderPermissionCheck.js';
 
+// OPTIONAL: import folder-specific handlers if you have them
+// import { renameFolder, moveFolderToTrash, deleteFolder } from '../controllers/folderController.js';
+
 const router = express.Router();
 const upload = multer({ storage: multer.memoryStorage() });
 
-// Upload File - files only
+// --------------------
+// File Routes
+// --------------------
+
+// Upload file
 router.post('/upload', authenticateUser, upload.single('file'), uploadFile);
 
-// Rename file (with permission check)
+// Rename file
 router.put('/rename/:id', authenticateUser, checkFilePermission('edit'), renameItem);
 
-// Move file to trash (with permission check)
+// Move file to trash
 router.put('/trash/:id', authenticateUser, checkFilePermission('edit'), moveToTrash);
 
-// Delete file permanently (with owner permission)
+// Delete file permanently
 router.delete('/delete/:id', authenticateUser, checkFilePermission('owner'), deleteItem);
 
-// Folder related routes should ideally be in a separate router (folderRoutes.js)
-// But if you want to keep here, make sure handlers exist and paths do not clash:
+// --------------------
+// Folder Routes (if using same controller methods)
+// --------------------
+// These use `renameItem` etc. but with `type: 'folder'` in body
+// Or replace with folder-specific controller if available
 
-// Rename folder
-// You need to import these handlers or create them
-// import { renameFolder, moveFolderToTrash, deleteFolder } from '../controllers/folderController.js';
-// For now, I will comment these out, add once you have those functions implemented
+router.put('/folder/rename/:id', authenticateUser, checkFolderPermission('edit'), (req, res, next) => {
+  req.body.type = 'folder';
+  renameItem(req, res, next);
+});
 
-// router.put('/folder/rename/:id', authenticateUser, checkFolderPermission('edit'), renameFolder);
-// router.put('/folder/trash/:id', authenticateUser, checkFolderPermission('edit'), moveFolderToTrash);
-// router.delete('/folder/delete/:id', authenticateUser, checkFolderPermission('owner'), deleteFolder);
+router.put('/folder/trash/:id', authenticateUser, checkFolderPermission('edit'), (req, res, next) => {
+  req.body.type = 'folder';
+  moveToTrash(req, res, next);
+});
+
+router.delete('/folder/delete/:id', authenticateUser, checkFolderPermission('owner'), (req, res, next) => {
+  req.body.type = 'folder';
+  deleteItem(req, res, next);
+});
+
+// --------------------
+// Get All User Data
+// --------------------
+router.get('/user/data', authenticateUser, getUserData);
 
 export default router;

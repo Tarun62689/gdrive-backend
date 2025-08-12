@@ -24,7 +24,6 @@ const uploadFile = async (req, res) => {
     // Find folder_id (default to My Drive)
     let folderId = req.body.folder_id || null;
     if (!folderId) {
-      // Try to get existing My Drive folder
       const { data: myDrive, error: driveError } = await supabase
         .from('folders')
         .select('id')
@@ -38,7 +37,6 @@ const uploadFile = async (req, res) => {
       }
 
       if (!myDrive) {
-        // Create My Drive folder on demand
         const { data: newDrive, error: createError } = await supabase
           .from('folders')
           .insert([{ user_id: userId, name: 'My Drive', parent_folder_id: null }])
@@ -199,4 +197,64 @@ const deleteItem = async (req, res) => {
   }
 };
 
-export { uploadFile, listFiles, renameItem, moveToTrash, deleteItem };
+// --------------------
+// Get All User Data
+// --------------------
+const getUserData = async (req, res) => {
+  try {
+    const userId = req.user?.id;
+
+    // Folders
+    const { data: folders, error: folderError } = await supabase
+      .from('folders')
+      .select('*')
+      .eq('user_id', userId)
+      .is('is_trashed', false);
+
+    if (folderError) throw folderError;
+
+    // Files
+    const { data: files, error: fileError } = await supabase
+      .from('files')
+      .select('*')
+      .eq('user_id', userId)
+      .is('is_trashed', false);
+
+    if (fileError) throw fileError;
+
+    // Shared Folders
+    const { data: sharedFolders, error: sharedFolderError } = await supabase
+      .from('folder_shares')
+      .select('*, folders(*)')
+      .eq('shared_with', userId);
+
+    if (sharedFolderError) throw sharedFolderError;
+
+    // Shared Files
+    const { data: sharedFiles, error: sharedFileError } = await supabase
+      .from('file_shares')
+      .select('*, files(*)')
+      .eq('shared_with', userId);
+
+    if (sharedFileError) throw sharedFileError;
+
+    res.status(200).json({
+      userId,
+      folders,
+      files,
+      sharedFolders,
+      sharedFiles,
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
+export {
+  uploadFile,
+  listFiles,
+  renameItem,
+  moveToTrash,
+  deleteItem,
+  getUserData
+};
