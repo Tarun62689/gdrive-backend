@@ -57,6 +57,6 @@ router.delete('/folder/delete/:id', authenticateUser, checkFolderPermission('own
 // --------------------
 // Get All User Data
 // --------------------
-router.get('/user/data', authenticateUser, getUserData);
+
 
 export default router;

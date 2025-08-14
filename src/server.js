@@ -13,7 +13,8 @@ const baseUrl = process.env.BASE_URL || `http://localhost:${PORT}`;
 app.use('/api', uploadRoutes);
 app.use('/api', folderRoutes);
 app.use('/api/files', fileRoutes);
-app.use('/user', userRoutes);
+app.use('/api/user', userRoutes);
+
 
 // Local dev mode only
 if (process.env.NODE_ENV !== 'production' && process.env.NODE_ENV !== 'test') {
