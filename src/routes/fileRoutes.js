@@ -4,8 +4,7 @@ import {
   uploadFile, 
   renameItem, 
   moveToTrash, 
-  deleteItem, 
-  getUserData 
+  deleteItem
 } from '../controllers/fileController.js';
 import { authenticateUser } from '../middlewares/auth.js'; 
 import checkFilePermission from '../middlewares/permissionCheck.js';
@@ -54,9 +53,7 @@ router.delete('/folder/delete/:id', authenticateUser, checkFolderPermission('own
   deleteItem(req, res, next);
 });
 
-// --------------------
-// Get All User Data
-// --------------------
+
 
 
 export default router;

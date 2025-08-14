@@ -13,7 +13,7 @@ export const authenticateUser = async (req, res, next) => {
       return res.status(401).json({ error: 'Invalid or expired token' });
     }
 
-    req.user = user; // store user info in request
+    req.user = user;
     next();
   } catch (err) {
     console.error('Auth Middleware Error:', err.message);
