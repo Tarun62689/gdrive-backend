@@ -3,20 +3,22 @@ import 'dotenv/config';
 import uploadRoutes from './routes/upload.js';
 import folderRoutes from './routes/folderRoutes.js';
 import fileRoutes from './routes/fileRoutes.js';
+import serverless from 'serverless-http';
 
-const PORT = process.env.PORT || 5000;  // <--- add this
-const baseUrl = process.env.BASE_URL || 'http://localhost:5000';
+const PORT = process.env.PORT || 5000;
+const baseUrl = process.env.BASE_URL || `http://localhost:${PORT}`;
 
 // Routes
 app.use('/api', uploadRoutes);
 app.use('/api', folderRoutes);
 app.use('/api/files', fileRoutes);
 
-// Only start the server if not in test mode
-if (process.env.NODE_ENV !== 'test') {
+// Local dev mode only
+if (process.env.NODE_ENV !== 'production' && process.env.NODE_ENV !== 'test') {
   app.listen(PORT, () => {
-    console.log(`Server Running On Port ${PORT}`);
+    console.log(`✅ Server running locally at ${baseUrl}`);
   });
 }
 
-export default app;
+// ✅ Export for Vercel serverless
+export default serverless(app);
