@@ -24,7 +24,7 @@ jest.cache/
 
 # Build output
 dist/
-.vercel/
+
 
 # Misc
 *.swp
