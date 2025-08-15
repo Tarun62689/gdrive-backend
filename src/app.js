@@ -27,21 +27,25 @@ import folderRoutesVEO from './routes/folderRoutesVEO.js';
 import searchRoutes from './routes/searchRoutes.js';
 import userRoutes from './routes/userRoutes.js';
 
+// Auth routes (login/signup)
 app.use('/auth', authRoutes);
-app.use('/api', protectedRoutes);
-app.use('/api', uploadRoutes); 
-app.use('/api', folderRoutes); 
+
+// Protected routes
+app.use('/api/protected', protectedRoutes);
+
+// Specific API routes (avoid generic /api to prevent conflicts)
+app.use('/api/upload', uploadRoutes);
+app.use('/api/folders', folderRoutes); 
 app.use('/api/files', fileRoutes);
 app.use('/api/storage', storageRoutes);
-app.use('/api', shareRoutes);
-app.use('/api/folders', folderRoutesVEO); // VEO specific folder routes
-app.use('/api', searchRoutes);
-app.use('/api/user', userRoutes);
-
+app.use('/api/share', shareRoutes);
+app.use('/api/folders-veo', folderRoutesVEO);
+app.use('/api/search', searchRoutes);
+app.use('/api/user', userRoutes); // Ensure this route uses auth middleware
 
 // Test route
 app.get('/', (req, res) => {
-  res.send('Google Drive Clone Backend API is running');
+  res.send('✅ Google Drive Clone Backend API is running');
 });
 
 export default app;
