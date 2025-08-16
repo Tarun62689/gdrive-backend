@@ -42,24 +42,12 @@ router.post("/login", async (req, res) => {
       return res.status(401).json({ error: "Invalid credentials." });
     }
 
-    const { access_token, refresh_token } = data.session;
-
-    // ✅ Store tokens in HttpOnly cookies
-    res.cookie("access_token", access_token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production", // true on Render
-      sameSite: process.env.NODE_ENV === "production" ? "none" : "lax", // safe locally
-      maxAge: 1000 * 60 * 60, // 1h
+    // ✅ Return user + access token in JSON
+    return res.status(200).json({
+      message: "Login successful",
+      user: data.user,
+      token: data.session.access_token, // frontend will store this
     });
-
-    res.cookie("refresh_token", refresh_token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
-      maxAge: 1000 * 60 * 60 * 24 * 7, // 7d
-    });
-
-    return res.status(200).json({ user: data.user });
   } catch (err) {
     return res.status(500).json({ error: "Internal server error." });
   }
@@ -70,18 +58,7 @@ router.post("/login", async (req, res) => {
  */
 router.post("/logout", (req, res) => {
   try {
-    res.clearCookie("access_token", {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
-    });
-
-    res.clearCookie("refresh_token", {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
-    });
-
+    // Logout can just clear frontend localStorage token
     return res.status(200).json({ message: "Logged out successfully." });
   } catch (err) {
     return res.status(500).json({ error: "Internal server error." });
