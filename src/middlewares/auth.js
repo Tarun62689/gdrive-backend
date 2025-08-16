@@ -3,8 +3,14 @@ import { supabase } from "../services/supabaseClient.js";
 
 export const authenticateUser = async (req, res, next) => {
   try {
-    // 1️⃣ Read token from cookie
-    const token = req.cookies?.token;
+    // 1️⃣ Get token from cookie OR Authorization header
+    let token = req.cookies?.token;
+
+    if (!token && req.headers.authorization) {
+      const [scheme, receivedToken] = req.headers.authorization.split(" ");
+      if (scheme === "Bearer") token = receivedToken;
+    }
+
     if (!token) {
       return res.status(401).json({ error: "No token provided" });
     }
