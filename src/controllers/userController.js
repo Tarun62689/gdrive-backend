@@ -1,19 +1,17 @@
-// controllers/userController.js
 import { supabase } from '../services/supabaseClient.js';
 import { transformFiles as transformFilesUtil, transformFolders, buildTree } from '../utils/transformFiles.js';
 
-// Transform files and generate signed URLs for all files
 const transformFiles = async (files) => {
   return await Promise.all(
     files.map(async (f) => {
       const transformed = transformFilesUtil([f])[0];
 
       try {
-        // Generate signed URL for every file (valid 1 hour)
+        // Generate signed URL for **all file types**
         const { data: signedUrlData, error } = await supabase
           .storage
           .from('user-files')
-          .createSignedUrl(f.path, 60 * 60);
+          .createSignedUrl(f.path, 60 * 60); // 1 hour expiry
 
         if (error) console.error('Signed URL error:', error);
 
@@ -33,7 +31,7 @@ export const getUserData = async (req, res) => {
   try {
     const userId = req.user.id;
 
-    // Fetch all files
+    // Get files
     const { data: files, error: fileError } = await supabase
       .from('files')
       .select('*')
@@ -42,7 +40,7 @@ export const getUserData = async (req, res) => {
 
     if (fileError) throw fileError;
 
-    // Fetch all folders
+    // Get folders
     const { data: folders, error: folderError } = await supabase
       .from('folders')
       .select('*')
@@ -52,7 +50,7 @@ export const getUserData = async (req, res) => {
     if (folderError) throw folderError;
 
     // Transform files & folders
-    const filesWithUrls = await transformFiles(files);
+    const filesWithUrls = await transformFiles(files); // signed URLs included
     const transformedFolders = transformFolders(folders);
     const folderTree = buildTree(transformedFolders);
 
