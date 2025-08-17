@@ -1,28 +1,37 @@
 // controllers/userController.js
 import { supabase } from '../services/supabaseClient.js';
 
-// Helper: transform files
-const transformFiles = (files) =>
-  files.map(f => {
-    const name = f.name || f.path.split('/').pop();
-    let type = 'file';
-    if (f.mime_type?.startsWith('image/')) type = 'image';
-    else if (f.mime_type?.startsWith('video/')) type = 'video';
-    else if (f.mime_type === 'application/pdf') type = 'pdf';
+// Helper: transform files with signed URLs
+const transformFiles = async (files) => {
+  return await Promise.all(
+    files.map(async (f) => {
+      const name = f.name || f.path.split('/').pop();
+      let type = 'file';
+      if (f.mime_type?.startsWith('image/')) type = 'image';
+      else if (f.mime_type?.startsWith('video/')) type = 'video';
+      else if (f.mime_type === 'application/pdf') type = 'pdf';
 
-    const { data: publicUrl } = supabase.storage.from('user-files').getPublicUrl(f.path);
+      // Generate signed URL (valid for 1 hour)
+      const { data: signedUrlData, error: urlError } = await supabase
+        .storage
+        .from('user-files')
+        .createSignedUrl(f.path, 60 * 60);
 
-    return {
-      id: f.id,
-      name,
-      type,
-      size: f.size,
-      uploadedAt: f.uploaded_at,
-      folderId: f.folder_id,
-      url: publicUrl.publicUrl,
-      isTrashed: f.is_trashed
-    };
-  });
+      if (urlError) console.error('Signed URL error:', urlError);
+
+      return {
+        id: f.id,
+        name,
+        type,
+        size: f.size,
+        uploadedAt: f.uploaded_at,
+        folderId: f.folder_id,
+        url: signedUrlData?.signedUrl || null,
+        isTrashed: f.is_trashed
+      };
+    })
+  );
+};
 
 // Helper: transform folders
 const transformFolders = (folders) =>
@@ -66,7 +75,7 @@ export const getUserData = async (req, res) => {
     if (folderError) throw folderError;
 
     // Transform files & folders
-    const filesWithUrls = transformFiles(files);
+    const filesWithUrls = await transformFiles(files);
     const transformedFolders = transformFolders(folders);
     const folderTree = buildTree(transformedFolders);
 
@@ -75,6 +84,7 @@ export const getUserData = async (req, res) => {
       folders: folderTree
     });
   } catch (error) {
+    console.error('getUserData error:', error);
     res.status(500).json({ error: error.message });
   }
 };
