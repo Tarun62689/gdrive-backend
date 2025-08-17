@@ -1,18 +1,18 @@
 import { supabase } from '../services/supabaseClient.js';
 import { transformFiles as transformFilesUtil, transformFolders, buildTree } from '../utils/transformFiles.js';
 
-// Transform files with signed URLs
+// Transform files and generate signed URLs for all types
 const transformFiles = async (files) => {
   return await Promise.all(
     files.map(async (f) => {
       const transformed = transformFilesUtil([f])[0];
 
       try {
-        // Generate signed URL valid for 1 hour
+        // Generate signed URL valid for 1 hour (all files)
         const { data: signedUrlData, error } = await supabase
           .storage
           .from('user-files')
-          .createSignedUrl(f.path, 60 * 60);
+          .createSignedUrl(f.path, 60 * 60); // 1 hour
 
         if (error) console.error('Signed URL error:', error);
 

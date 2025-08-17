@@ -1,7 +1,5 @@
-// Get file name from path
 export const getFileName = (path) => path.split('/').pop();
 
-// Determine file type
 export const getFileType = (mime_type) => {
   if (!mime_type) return 'file';
   if (mime_type.startsWith('image/')) return 'image';
@@ -10,7 +8,6 @@ export const getFileType = (mime_type) => {
   return 'file';
 };
 
-// Generate thumbnail (only for images)
 export const getThumbnail = (file) => {
   if (file.mime_type?.startsWith('image/')) {
     return `${process.env.SUPABASE_URL}/storage/v1/object/public/${file.path}`;
@@ -18,7 +15,6 @@ export const getThumbnail = (file) => {
   return null;
 };
 
-// Transform files into consistent format
 export const transformFiles = (files) => files.map(file => ({
   id: file.id,
   name: file.name || getFileName(file.path),
@@ -31,7 +27,6 @@ export const transformFiles = (files) => files.map(file => ({
   isTrashed: file.is_trashed
 }));
 
-// Transform folders
 export const transformFolders = (folders) => folders.map(f => ({
   id: f.id,
   name: f.name,
@@ -40,7 +35,6 @@ export const transformFolders = (folders) => folders.map(f => ({
   createdAt: f.created_at
 }));
 
-// Build nested folder tree
 export const buildTree = (items, parentId = null) =>
   items
     .filter(item => item.parentId === parentId)
