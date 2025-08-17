@@ -1,5 +1,7 @@
+// Get file name from path
 export const getFileName = (path) => path.split('/').pop();
 
+// Determine file type
 export const getFileType = (mime_type) => {
   if (!mime_type) return 'file';
   if (mime_type.startsWith('image/')) return 'image';
@@ -8,6 +10,7 @@ export const getFileType = (mime_type) => {
   return 'file';
 };
 
+// Generate thumbnail (images only)
 export const getThumbnail = (file) => {
   if (file.mime_type?.startsWith('image/')) {
     return `${process.env.SUPABASE_URL}/storage/v1/object/public/${file.path}`;
@@ -15,26 +18,31 @@ export const getThumbnail = (file) => {
   return null;
 };
 
-export const transformFiles = (files) => files.map(file => ({
-  id: file.id,
-  name: file.name || getFileName(file.path),
-  type: getFileType(file.mime_type),
-  size: file.size,
-  uploadedAt: file.uploaded_at,
-  path: file.path,
-  thumbnail: getThumbnail(file),
-  folderId: file.folder_id,
-  isTrashed: file.is_trashed
-}));
+// Transform files into consistent format
+export const transformFiles = (files) =>
+  files.map(file => ({
+    id: file.id,
+    name: file.name || getFileName(file.path),
+    type: getFileType(file.mime_type),
+    size: file.size,
+    uploadedAt: file.uploaded_at,
+    path: file.path,
+    thumbnail: getThumbnail(file),
+    folderId: file.folder_id,
+    isTrashed: file.is_trashed
+  }));
 
-export const transformFolders = (folders) => folders.map(f => ({
-  id: f.id,
-  name: f.name,
-  parentId: f.parent_folder_id || null,
-  type: 'folder',
-  createdAt: f.created_at
-}));
+// Transform folders
+export const transformFolders = (folders) =>
+  folders.map(f => ({
+    id: f.id,
+    name: f.name,
+    parentId: f.parent_folder_id || null,
+    type: 'folder',
+    createdAt: f.created_at
+  }));
 
+// Build nested folder tree
 export const buildTree = (items, parentId = null) =>
   items
     .filter(item => item.parentId === parentId)
