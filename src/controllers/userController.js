@@ -1,56 +1,32 @@
-// controllers/userController.js
 import { supabase } from '../services/supabaseClient.js';
+import { transformFiles as transformFilesUtil, transformFolders, buildTree } from '../utils/transformFiles.js';
 
-// Helper: transform files with signed URLs
+// Transform files with signed URLs
 const transformFiles = async (files) => {
   return await Promise.all(
     files.map(async (f) => {
-      const name = f.name || f.path.split('/').pop();
-      let type = 'file';
-      if (f.mime_type?.startsWith('image/')) type = 'image';
-      else if (f.mime_type?.startsWith('video/')) type = 'video';
-      else if (f.mime_type === 'application/pdf') type = 'pdf';
+      const transformed = transformFilesUtil([f])[0];
 
-      // Generate signed URL (valid for 1 hour)
-      const { data: signedUrlData, error: urlError } = await supabase
-        .storage
-        .from('user-files')
-        .createSignedUrl(f.path, 60 * 60);
+      try {
+        // Generate signed URL valid for 1 hour
+        const { data: signedUrlData, error } = await supabase
+          .storage
+          .from('user-files')
+          .createSignedUrl(f.path, 60 * 60);
 
-      if (urlError) console.error('Signed URL error:', urlError);
+        if (error) console.error('Signed URL error:', error);
 
-      return {
-        id: f.id,
-        name,
-        type,
-        size: f.size,
-        uploadedAt: f.uploaded_at,
-        folderId: f.folder_id,
-        url: signedUrlData?.signedUrl || null,
-        isTrashed: f.is_trashed
-      };
+        return {
+          ...transformed,
+          url: signedUrlData?.signedUrl || null
+        };
+      } catch (err) {
+        console.error('Error generating signed URL:', err);
+        return transformed;
+      }
     })
   );
 };
-
-// Helper: transform folders
-const transformFolders = (folders) =>
-  folders.map(f => ({
-    id: f.id,
-    name: f.name,
-    parentId: f.parent_folder_id || null,
-    type: 'folder',
-    createdAt: f.created_at
-  }));
-
-// Helper: build nested folder tree
-const buildTree = (items, parentId = null) =>
-  items
-    .filter(item => item.parentId === parentId)
-    .map(item => ({
-      ...item,
-      children: buildTree(items, item.id)
-    }));
 
 export const getUserData = async (req, res) => {
   try {
