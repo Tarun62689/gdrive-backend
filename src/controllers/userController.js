@@ -8,7 +8,7 @@ const transformFiles = async (files) => {
       const transformed = transformFilesUtil([f])[0];
 
       try {
-        // Generate signed URL valid for 1 hour (all files)
+        // Generate signed URL valid for 1 hour for every file
         const { data: signedUrlData, error } = await supabase
           .storage
           .from('user-files')
