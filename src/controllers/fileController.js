@@ -1,9 +1,10 @@
+// File: src/controllers/fileController.js
 import { supabase } from '../services/supabaseClient.js';
 
 const permissionLevels = { view: 1, edit: 2, owner: 3 };
 
 // --------------------
-// Helper: Paginated Query
+// Helper: Paginate
 // --------------------
 const paginate = (page, limit) => {
   const p = parseInt(page) || 1;
@@ -11,6 +12,54 @@ const paginate = (page, limit) => {
   const offset = (p - 1) * l;
   return { p, l, offset };
 };
+
+// --------------------
+// Helper: Transform files
+// --------------------
+const transformFiles = (files) =>
+  files.map(f => {
+    const name = f.name || f.path.split('/').pop();
+    let type = 'file';
+    if (f.mime_type?.startsWith('image/')) type = 'image';
+    else if (f.mime_type?.startsWith('video/')) type = 'video';
+    else if (f.mime_type === 'application/pdf') type = 'pdf';
+
+    const { data: publicUrl } = supabase.storage.from('user-files').getPublicUrl(f.path);
+
+    return {
+      id: f.id,
+      name,
+      type,
+      size: f.size,
+      uploadedAt: f.uploaded_at,
+      folderId: f.folder_id,
+      url: publicUrl.publicUrl,
+      isTrashed: f.is_trashed
+    };
+  });
+
+// --------------------
+// Helper: Transform folders
+// --------------------
+const transformFolders = (folders) =>
+  folders.map(f => ({
+    id: f.id,
+    name: f.name,
+    parentId: f.parent_folder_id || null,
+    type: 'folder',
+    createdAt: f.created_at,
+  }));
+
+// --------------------
+// Helper: Build folder tree
+// --------------------
+const buildTree = (items, parentId = null) =>
+  items
+    .filter(item => item.parentId === parentId)
+    .map(item => ({
+      ...item,
+      children: buildTree(items, item.id)
+    }));
 
 // --------------------
 // Upload File
@@ -21,7 +70,7 @@ const uploadFile = async (req, res) => {
     const userId = req.user?.id;
     if (!buffer) return res.status(400).json({ error: 'No file uploaded' });
 
-    // Find folder_id (default to My Drive)
+    // Default folder: My Drive
     let folderId = req.body.folder_id || null;
     if (!folderId) {
       const { data: myDrive, error: driveError } = await supabase
@@ -31,8 +80,7 @@ const uploadFile = async (req, res) => {
         .ilike('name', 'My Drive')
         .is('parent_folder_id', null)
         .maybeSingle();
-
-      if (driveError) return res.status(400).json({ error: 'Database error searching My Drive' });
+      if (driveError) return res.status(400).json({ error: 'Database error' });
 
       if (!myDrive) {
         const { data: newDrive, error: createError } = await supabase
@@ -40,31 +88,9 @@ const uploadFile = async (req, res) => {
           .insert([{ user_id: userId, name: 'My Drive', parent_folder_id: null }])
           .select()
           .single();
-        if (createError) return res.status(500).json({ error: 'Failed to create My Drive folder' });
+        if (createError) return res.status(500).json({ error: 'Failed to create My Drive' });
         folderId = newDrive.id;
-      } else {
-        folderId = myDrive.id;
-      }
-    }
-
-    // Permission Check
-    const { data: folder, error: folderError } = await supabase
-      .from('folders')
-      .select('user_id')
-      .eq('id', folderId)
-      .single();
-    if (folderError || !folder) return res.status(404).json({ error: 'Folder not found' });
-
-    if (folder.user_id !== userId) {
-      const { data: share, error: shareError } = await supabase
-        .from('folder_shares')
-        .select('permission')
-        .eq('folder_id', folderId)
-        .eq('shared_with', userId)
-        .single();
-      if (shareError || !share || permissionLevels[share.permission] < permissionLevels.edit) {
-        return res.status(403).json({ error: 'No permission to upload here' });
-      }
+      } else folderId = myDrive.id;
     }
 
     // Upload to storage
@@ -85,7 +111,6 @@ const uploadFile = async (req, res) => {
         name: originalname,
         size,
         mime_type: mimetype,
-        format: mimetype,
         user_id: userId,
         folder_id: folderId,
         is_trashed: false,
@@ -95,7 +120,7 @@ const uploadFile = async (req, res) => {
       .single();
     if (error) throw error;
 
-    res.status(200).json({ message: 'File uploaded successfully', file: { ...data, url: publicUrl.publicUrl } });
+    res.status(200).json({ message: 'File uploaded', file: { ...data, url: publicUrl.publicUrl } });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -112,26 +137,16 @@ const listFiles = async (req, res) => {
 
     const { data: files, error } = await supabase
       .from('files')
-      .select('id, name, size, uploaded_at, path')
+      .select('*')
       .eq('user_id', userId)
       .is('is_trashed', false)
       .order('uploaded_at', { ascending: false })
       .range(offset, offset + l - 1);
     if (error) throw error;
 
-    const { count } = await supabase
-      .from('files')
-      .select('id', { count: 'exact', head: true })
-      .eq('user_id', userId)
-      .is('is_trashed', false);
+    const filesWithUrls = transformFiles(files);
 
-    // Attach public URLs
-    const filesWithUrls = files.map(f => {
-      const { data: publicUrl } = supabase.storage.from('user-files').getPublicUrl(f.path);
-      return { ...f, url: publicUrl.publicUrl };
-    });
-
-    res.status(200).json({ page: p, limit: l, total: count, results: filesWithUrls });
+    res.status(200).json({ page: p, limit: l, results: filesWithUrls });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -180,7 +195,7 @@ const moveToTrash = async (req, res) => {
 };
 
 // --------------------
-// Delete Item
+// Delete Item Permanently
 // --------------------
 const deleteItem = async (req, res) => {
   const { id } = req.params;
@@ -196,13 +211,13 @@ const deleteItem = async (req, res) => {
 };
 
 // --------------------
-// Get All User Data
+// Get User Data (Google Drive Style)
 // --------------------
 const getUserData = async (req, res) => {
   try {
     const userId = req.user?.id;
 
-    // Folders
+    // Fetch folders
     const { data: folders, error: folderError } = await supabase
       .from('folders')
       .select('*')
@@ -210,7 +225,7 @@ const getUserData = async (req, res) => {
       .is('is_trashed', false);
     if (folderError) throw folderError;
 
-    // Files
+    // Fetch files
     const { data: files, error: fileError } = await supabase
       .from('files')
       .select('*')
@@ -218,32 +233,14 @@ const getUserData = async (req, res) => {
       .is('is_trashed', false);
     if (fileError) throw fileError;
 
-    // Attach URLs to files
-    const filesWithUrls = files.map(f => {
-      const { data: publicUrl } = supabase.storage.from('user-files').getPublicUrl(f.path);
-      return { ...f, url: publicUrl.publicUrl };
-    });
-
-    // Shared Folders
-    const { data: sharedFolders, error: sharedFolderError } = await supabase
-      .from('folder_shares')
-      .select('*, folders(*)')
-      .eq('shared_with', userId);
-    if (sharedFolderError) throw sharedFolderError;
-
-    // Shared Files
-    const { data: sharedFiles, error: sharedFileError } = await supabase
-      .from('file_shares')
-      .select('*, files(*)')
-      .eq('shared_with', userId);
-    if (sharedFileError) throw sharedFileError;
+    // Transform data
+    const filesWithUrls = transformFiles(files);
+    const transformedFolders = transformFolders(folders);
+    const folderTree = buildTree(transformedFolders);
 
     res.status(200).json({
-      userId,
-      folders,
       files: filesWithUrls,
-      sharedFolders,
-      sharedFiles,
+      folders: folderTree
     });
   } catch (error) {
     res.status(500).json({ error: error.message });
