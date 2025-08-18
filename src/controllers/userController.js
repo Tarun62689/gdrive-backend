@@ -1,27 +1,23 @@
 import { supabase } from '../services/supabaseClient.js';
 import { transformFiles as transformFilesUtil, transformFolders, buildTree } from '../utils/transformFiles.js';
 
-// Transform files with signed URLs (works for images, PDFs, videos, etc.)
 const transformFiles = async (files) => {
   return await Promise.all(
     files.map(async (f) => {
       const transformed = transformFilesUtil([f])[0];
 
       try {
-        // Encode the path to handle spaces and special characters
-        const pathEncoded = encodeURIComponent(f.path);
-
-        // Generate signed URL valid for 1 hour
+        // Generate signed URL for **all file types**
         const { data: signedUrlData, error } = await supabase
           .storage
           .from('user-files')
-          .createSignedUrl(pathEncoded, 60 * 60); // 1 hour expiry
+          .createSignedUrl(f.path, 60 * 60); // 1 hour expiry
 
         if (error) console.error('Signed URL error:', error);
 
         return {
           ...transformed,
-          url: signedUrlData?.signedUrl ? encodeURI(signedUrlData.signedUrl) : null
+          url: signedUrlData?.signedUrl || null
         };
       } catch (err) {
         console.error('Error generating signed URL:', err);
@@ -35,7 +31,7 @@ export const getUserData = async (req, res) => {
   try {
     const userId = req.user.id;
 
-    // Fetch files from Supabase
+    // Get files
     const { data: files, error: fileError } = await supabase
       .from('files')
       .select('*')
@@ -44,7 +40,7 @@ export const getUserData = async (req, res) => {
 
     if (fileError) throw fileError;
 
-    // Fetch folders from Supabase
+    // Get folders
     const { data: folders, error: folderError } = await supabase
       .from('folders')
       .select('*')
@@ -54,7 +50,7 @@ export const getUserData = async (req, res) => {
     if (folderError) throw folderError;
 
     // Transform files & folders
-    const filesWithUrls = await transformFiles(files);
+    const filesWithUrls = await transformFiles(files); // signed URLs included
     const transformedFolders = transformFolders(folders);
     const folderTree = buildTree(transformedFolders);
 
